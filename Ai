@@ -1,0 +1,132 @@
+-- AEKHUB x ICEHUB | Murder Mystery 2
+-- LocalScript
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- Config
+local Settings = {
+    HitboxSize = Vector3.new(10, 10, 10),
+    HitboxTransparency = 0.5,
+    AimbotEnabled = true
+}
+
+-- Helpers
+local function GetRole(player)
+    local backpack = player:FindFirstChild("Backpack")
+    local character = player.Character
+    
+    local function hasItem(itemName)
+        return (backpack and backpack:FindFirstChild(itemName)) or (character and character:FindFirstChild(itemName))
+    end
+
+    if hasItem("Knife") then
+        return "Murder"
+    elseif hasItem("Gun") then
+        return "Sheriff"
+    else
+        return "Innocent"
+    end
+end
+
+-- 1. ESP Function
+local function ApplyESP(player)
+    if player == LocalPlayer then return end
+
+    local function setupHighlight(char)
+        if not char then return end
+        
+        local root = char:WaitForChild("HumanoidRootPart", 5)
+        if not root then return end
+
+        -- Remove old ESP
+        if char:FindFirstChild("RoleHighlight") then char.RoleHighlight:Destroy() end
+        if root:FindFirstChild("RoleBillboard") then root.RoleBillboard:Destroy() end
+
+        local role = GetRole(player)
+        local color, text = Color3.fromRGB(0, 255, 0), "ดี56"
+
+        if role == "Murder" then
+            color = Color3.fromRGB(255, 0, 0)
+            text = "เลว49"
+        elseif role == "Sheriff" then
+            color = Color3.fromRGB(0, 170, 255)
+            text = "ฮีโร่84"
+        end
+
+        -- Highlight
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "RoleHighlight"
+        highlight.FillColor = color
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.4
+        highlight.Parent = char
+
+        -- Name Tag
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "RoleBillboard"
+        bb.Adornee = root
+        bb.Size = UDim2.new(0, 100, 0, 30)
+        bb.StudsOffset = Vector3.new(0, 3, 0)
+        bb.AlwaysOnTop = true
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.TextColor3 = color
+        label.TextStrokeTransparency = 0
+        label.TextSize = 16
+        label.Font = Enum.Font.SourceSansBold
+        label.Parent = bb
+
+        bb.Parent = root
+    end
+
+    player.CharacterAdded:Connect(setupHighlight)
+    if player.Character then setupHighlight(player.Character) end
+end
+
+-- 2. Hitbox Expansion
+local function ExpandHitbox(player)
+    if player == LocalPlayer then return end
+    
+    RunService.RenderStepped:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            hrp.Size = Settings.HitboxSize
+            hrp.Transparency = Settings.HitboxTransparency
+            hrp.BrickColor = BrickColor.new("Really red")
+            hrp.Material = Enum.Material.Neon
+            hrp.CanCollide = false
+        end
+    end)
+end
+
+-- 3. Aimbot (Lock Camera to Murder)
+RunService.RenderStepped:Connect(function()
+    if not Settings.AimbotEnabled then return end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if GetRole(player) == "Murder" then
+                local targetHRP = player.Character.HumanoidRootPart
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHRP.Position)
+                break
+            end
+        end
+    end
+end)
+
+-- Main Loop
+for _, player in pairs(Players:GetPlayers()) do
+    ApplyESP(player)
+    ExpandHitbox(player)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    ApplyESP(player)
+    ExpandHitbox(player)
+end)
